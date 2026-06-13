@@ -4,20 +4,38 @@ from click import option
 import pickle
 import pandas as pd
 import requests
+import time
 
 
 API_KEY = "c66ec16a34d3689c86820c72fc7a22ec"
 
 
-# from pandas.io.formats.format import return_docstring
-# from select import select
-
-
 def fetch_poster(movie_id):
+
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US"
-    response = requests.get(url)
-    data = response.json()
-    return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
+
+    for _ in range(3):
+
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=15
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            poster_path = data.get("poster_path")
+
+            if poster_path:
+                return f"https://image.tmdb.org/t/p/w500{poster_path}"
+
+        except Exception:
+            time.sleep(1)
+
+    return "https://placehold.co/500x750?text=Poster+Unavailable"
 
 
 def recommend(movie):
@@ -32,7 +50,6 @@ def recommend(movie):
 
         recommended_movies.append(movies.iloc[j[0]].title)
 
-    #  fetch poster from api
         recommended_movies_posters.append(fetch_poster(movie_id))
 
     return recommended_movies,recommended_movies_posters
@@ -40,6 +57,8 @@ def recommend(movie):
 
 movies_dict = pickle.load(open('movie_dict.pkl','rb'))
 movies = pd.DataFrame(movies_dict)
+
+
 
 similarity = pickle.load(open('similarity.pkl','rb'))
 
@@ -56,9 +75,7 @@ movies['title'].values
 
 if st.button('Recommend'):
     names,posters = recommend(selected_movie_name)
-    # for i in recommendations:
-    #     st.write(i)
-    # col1, col2, col3, col4, col5 =st.beta_columns(5)
+
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
